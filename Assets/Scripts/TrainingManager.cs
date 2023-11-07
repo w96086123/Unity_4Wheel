@@ -10,12 +10,22 @@ using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
 // using System;
 using System.Reflection;
+using WebSocketSharp;
+using MiniJSON;
+
 
 public class TrainingManager : MonoBehaviour
 {   
-    string host = "127.0.0.1"; //; "localhost"
-    public int port = 5060;
-    Socket client;
+    string topicName = "/unity2Ros"; 
+    string topicName_receive = "/ros2Unity"; 
+    
+    private WebSocket socket;
+    private string rosbridgeServerUrl = "ws://localhost:9090";
+
+    
+    // string host = "127.0.0.1"; //; "localhost"
+    // public int port = 5060;
+    // Socket client;
 
     const int messageLength = 10000; //12000
     byte[] messageHolder = new byte[messageLength];
@@ -24,7 +34,10 @@ public class TrainingManager : MonoBehaviour
     Thread t;
 
     public Robot robot;
-
+    
+    [SerializeField]
+    GameObject anchor1, anchor2, anchor3, anchor4;
+    Vector3[] outerPolygonVertices;
 
     [SerializeField]
     GameObject target;
@@ -44,14 +57,6 @@ public class TrainingManager : MonoBehaviour
     [SerializeField]
     GameObject obstacle2;
 
-    // [SerializeField]
-    // GameObject c0;
-
-    // [SerializeField]
-    // GameObject c1;
-
-    // [SerializeField]
-    // float logProb = 0.01f;
 
     enum Phase {
         Freeze,
@@ -62,8 +67,7 @@ public class TrainingManager : MonoBehaviour
     public float currentStepTime = 0.0f;
 
     Vector3 newTarget;
-    // Dictionary<string, Dictionary<string, float>> state = new Dictionary<string, Dictionary<string, float>>();
-    // public Dictionary<string, float> minRange = new Dictionary<string, float>();
+
 
     public BezierCurve curver;
 
@@ -73,89 +77,188 @@ public class TrainingManager : MonoBehaviour
 
     // List<float> radius = new List<float>{4f, 4.5f, 5f};
     float radius = 4.5f;
-        
+    [System.Serializable]
+     public class RobotNewsMessage
+    {
+        public string op;
+        public string topic;
+        public MessageData msg;
+    }
+    [System.Serializable]
+     public class MessageData
+    {
+        public LayoutData layout;
+        public float[] data;
+    }
+    [System.Serializable]
+    public class LayoutData
+    {
+        public int[] dim;
+        public int data_offset;
+    }
     void Awake()
     {
         base_footprint = robot.transform.Find("base_link");
     }
 
+    Transform baselink;
+    Vector3 carPos;
+
     void Start()
     {   
-        // Robot.State state = robot.GetState();
-        // originPos = new Vector3(state.baseLinkPos.x, 0.0f, state.baseLinkPos.y);
+        baselink = robot.transform.Find("base_link");
         
-        // client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        // client.Connect(IPAddress.Parse(host), port);
-        // Debug.Log("Start listening...");
-        StartCoroutine(ConnectToServer());
+        socket = new WebSocket(rosbridgeServerUrl);
+        
+        socket.OnOpen += (sender, e) =>
+        {
+            SubscribeToTopic(topicName_receive);
+        };
 
-        // float target_x = Random.Range(-3.0f, 3.0f);
-        // if (target_x <= 1 && target_x >= -1) {
-        //     if (target_x > 0) {
-        //         target_x += 1;
-        //     } else {
-        //         target_x -= 1;
-        //     }
-            
-        // }
-
-        // float target_y = Random.Range(-3.0f, 3.0f);
-        // if (target_y <= 1 && target_y >= -1) {
-        //     if (target_y > 0) {
-        //         target_y += 1;
-        //     } else {
-        //         target_y -= 1;
-        //     }
-            
-        // }
-    
-        // newTarget = new Vector3(target_x, 0, target_y);
-
-        // int theta = Random.Range(0, 359);
-        // float radius = Random.Range(3.5f, 1.5f);
-        // newTarget = new Vector3(Mathf.Cos(theta) * radius, 0, Mathf.Sin(theta) * radius);
+        socket.OnMessage += OnWebSocketMessage;
+        
+        socket.Connect();
 
         MoveGameObject(target, newTarget);
-        // Vector3 originalPos = new Vector3(0,0,0);
-        // MoveRobot(originalPos);
-        
-        ////////straight////////
-        // curver.drawLine(originalPos, targetPos);
 
-        ////////curve////////
-        // List<Vector3> peak = findPeak(originalPos, newTarget);
-        // curver.drawCurve(originalPos, peak[0], peak[1] ,newTarget);
-        // MoveGameObject(c0, peak[0]);
-        // MoveGameObject(c1, peak[1]);
-
-        // SetObstables(curver);
         State state = updateState(newTarget, curver);
         
-
         Send(state);
-        // Send("state", robot.GetState());
-
-        // EndStep();
     }
 
-     // Update is called once per frame
+    float target_x;
+    float target_y;
+    
+    
+    float target_change_flag = 0;
+    
     void Update()
-    {   
-        ThreadReceive();
+    {  
 
-            while (inMessage.TryDequeue(out string jm)) {
-                try { 
-                    Receive(jm);
-                    // Debug.Log(jm);
+        if(target_change_flag == 1){
+
+            change_target();
+            target_change_flag = 0;
+        }   
+        
+                
+                          
+    }
+        
+    
+
+        void change_target()
+    {
+        carPos = baselink.GetComponent<ArticulationBody>().transform.position;
+        outerPolygonVertices = new Vector3[]{
+            anchor1.transform.position,
+            anchor2.transform.position,
+            anchor3.transform.position,
+            anchor4.transform.position
+        };
+        newTarget = new Vector3(carPos[0]-20, 0, carPos[2]-20);
+
+        while (!IsPointInsidePolygon(newTarget, outerPolygonVertices)){
+            target_x = Random.Range(-3.0f, 3.0f);
+
+            if (target_x <= 1 && target_x >= -1) {
+                if (target_x > 0) {
+                    target_x += 1;
+                } else {
+                    target_x -= 1;
                 }
-                catch (System.Exception e){
-                    Debug.LogException(e, this);
-                    Debug.Log(jm);
-                }
-                // Debug.Log(ctr);             
             }
+
+            float target_y = Random.Range(-3.0f, 3.0f);
+            if (target_y <= 1 && target_y >= -1) {
+                if (target_y > 0) {
+                    target_y += 1;
+                } else {
+                    target_y -= 1;
+                }
+            }
+            newTarget = new Vector3(carPos[0]+target_x, 0, carPos[2]+target_y);
+
+        }
+        // Debug.Log("newTarget: "+newTarget);
+        MoveGameObject(target, newTarget);
+
+        State state = updateState(newTarget, curver);
+        Debug.Log("ROS2TargetPosition: "+state.ROS2TargetPosition);
+        Send(state);
+
+    }
+
+    private void OnWebSocketMessage(object sender, MessageEventArgs e)
+    {
+        string jsonString = e.Data;
+        RobotNewsMessage message = JsonUtility.FromJson<RobotNewsMessage>(jsonString);
+
+        
+        float[] data = message.msg.data;
+        
+        switch (data[0]) {
+            case 0:
+                
+                Robot.Action action = new Robot.Action();
+                action.voltage = new List<float>();
+
+                action.voltage.Add((float)data[1]);
+                
+                action.voltage.Add((float)data[2]);
+
+                robot.DoAction(action);
+                StartStep();
+
+                break;
+                
+            case 1:
+                
+                // robot.trailRenderer.Clear();
+                
+                // float target_x = Random.Range(-3.0f, 3.0f);//broken TODO
+                // Debug.Log(target_x);
+                //     if (target_x <= 1 && target_x >= -1) {
+                //        if (target_x > 0) {
+                //             target_x += 1;
+                //         } else {
+                //             target_x -= 1;
+                //         }
+                            
+                //     }
+                // Debug.Log("target_x");
+                // float target_y = Random.Range(-3.0f, 3.0f);
+                // if (target_y <= 1 && target_y >= -1) {
+                //     if (target_y > 0) {
+                //         target_y += 1;
+                //     } else {
+                //         target_y -= 1;
+                //     }   
+                // }
+                target_change_flag = 1;
+                // Transform baselink = robot.transform.Find("base_link");
+                Debug.Log("new target: "+ newTarget);
+                // var carPos = baselink.GetComponent<ArticulationBody>().transform.position;
+                
+                
+                
+                // MoveGameObject(target, newTarget);
+                
+                // State state = updateState(newTarget, curver);
+                // Debug.Log("new target!!!!!!!!!!!!!!!");
+                // Debug.Log("carPosition: "+state.carPosition);
+                // Debug.Log("targetPosition: "+state.ROS2TargetPosition);
+                // Send(state);
+                
+                break;
+            }
+
+        //TODO: receive data from AI model
+
         
     }
+     // Update is called once per frame
+    
 
     void FixedUpdate()
     {
@@ -168,27 +271,7 @@ public class TrainingManager : MonoBehaviour
         }
     }
 
-    void ThreadReceive()
-    {   
-        if (t != null && t.IsAlive == true)
-            return;
-        ThreadStart ts = new ThreadStart(StartReceive);
-        t = new Thread(ts);
-        t.Start();
-
-    }
-
-    void StartReceive()
-    {   
-        try {
-            int bufferLen = client.Receive(messageHolder);
-            string jMessage = Encoding.ASCII.GetString(messageHolder, 0, bufferLen);
-            inMessage.Enqueue(jMessage);
-        } catch {
-
-        }
-        
-    }
+   
 
     void StartStep()
     {   
@@ -200,104 +283,18 @@ public class TrainingManager : MonoBehaviour
     void EndStep()
     {
         phase = Phase.Freeze;
-        // Time.timeScale = 0; //stop physics simulation
-        // Debug.Log(ctr); 
+
         
 
         State state = updateState(newTarget, curver);
-
         Send(state);
-                
-        // Send("state", robot.GetState());
-
-    }
-
-    void Receive(string jMessage)
-    {   
-        try {
-            JObject jOmessage = JObject.Parse(jMessage);
-            // Debug.Log($"recv:\n {jMessage}");
-
-            // if (Random.Range(0, 1f) < logProb)
-            //     Debug.Log($"recv:\n {jMessage}");
-            
-            var title = (string) jOmessage["title"];
-            var content = jOmessage["content"];
-
-            switch (title) {
-                case "action":
-                    var action = content.ToObject<Robot.Action>();
-                    // Debug.Log($"action:\n ({action.voltage[0]}, {action.voltage[1]}, {action.voltage[2]}, {action.voltage[3]}, {action.voltage[4]} {action.voltage[5]}, {action.voltage[6]}, {action.voltage[7]})" );
-                    
-                    robot.DoAction(action);
-
-                    StartStep();
-
-                    break;
-                
-                case "new target":
-                    // robot.trailRenderer.Clear();
-
-                    float target_x = Random.Range(-3.0f, 3.0f);
-                        if (target_x <= 1 && target_x >= -1) {
-                            if (target_x > 0) {
-                                target_x += 1;
-                            } else {
-                                target_x -= 1;
-                            }
-                            
-                        }
-                    float target_y = Random.Range(-3.0f, 3.0f);
-                    if (target_y <= 1 && target_y >= -1) {
-                        if (target_y > 0) {
-                            target_y += 1;
-                        } else {
-                            target_y -= 1;
-                        }   
-                    }
-
-                    // int theta = Random.Range(0, 359);
-                    // float radius = Random.Range(3.5f, 1.5f);
-                    // Vector3 tmp = new Vector3(Mathf.Cos(theta) * radius, 0, Mathf.Sin(theta) * radius);
-                    // float target_x = tmp.x;
-                    // float target_y = tmp.z;
-
-                    Transform baselink = robot.transform.Find("base_link");
-                    // Transform baselink = robot.transform.Find("base_link");
-                    var carPos = baselink.GetComponent<ArticulationBody>().transform.position;
-                    // var rotation = baselink.GetComponent<ArticulationBody>().transform.rotation;
-                    // if (rotation.w < 0 || carPos[1] < -0.39) { //upside down or stucked in floor
-                    //     baselink.GetComponent<ArticulationBody>().TeleportRoot(new Vector3(0,0,0), Quaternion.identity);
-                    //     carPos = new Vector3(0,0,0);
-                    // }
-
-                    newTarget = new Vector3(carPos[0]+target_x, 0, carPos[2]+target_y);
-                    Debug.Log("-----------------------");
-                    Debug.Log("newTarget: "+ newTarget);
-                    MoveGameObject(target, newTarget);
-
-                    ////////straight////////
-                    // curver.drawLine(carPos, targetPos);
-
-                    ////////curve////////
-                    // List<Vector3> peak = findPeak(carPos, newTarget);
-                    // curver.drawCurve(carPos, peak[0], peak[1] ,newTarget);
-                    // MoveGameObject(c0, peak[0]);
-                    // MoveGameObject(c1, peak[1]);
-
-                    // SetObstables(curver);
-                    State state = updateState(newTarget, curver);
-
-                    Send(state);
-                    
-                    break;
-            }
-        } catch (System.Exception e) {
-            Debug.LogException(e, this);
-            Debug.Log($"recv:\n {jMessage}");
-        }
         
+        // Debug.Log(state.carPosition);
+        // Debug.Log(state.ROS2TargetPosition);
+                
     }
+
+    
 
     private float randomFloat(float min, float max)
     {
@@ -329,53 +326,82 @@ public class TrainingManager : MonoBehaviour
 
     void Send(object data)
     {   
-        // recurring properties in your object, this tells your serializer that multiple references are okay.
-        var settings = new Newtonsoft.Json.JsonSerializerSettings();
-        settings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+        // List<float> send_to_python = new List<float>();
+        var properties = typeof(State).GetProperties();
+        // foreach (var property in properties)
+        // {
+        //     if (property.PropertyType == typeof(Vector3) || property.PropertyType == typeof(Quaternion) || property.PropertyType == typeof(float))
+        //     {
+        //         var value = property.GetValue(data);
 
-        byte[] buffer = Encoding.ASCII.GetBytes(JsonConvert.SerializeObject(data, settings));
-        client.Send(buffer);
-
-        // Debug.Log($"send:\n {data}");
-        // if (Random.Range(0, 1f) < logProb)
-        //     Debug.Log($"send:\n {buffer}");
-    
-    }
-
-    private  IEnumerator PauseCoroutine()
-    {
-        yield return new WaitForSeconds(1.0f);
-        // Code after 1 second pause
-    }
-
-    private IEnumerator ConnectToServer()
-    {
-        // Create a TcpClient object and attempt to connect to the server
-        client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        while (!client.Connected)
-        {
-            try
-            {
-                client.Connect(IPAddress.Parse(host), port);
+        //         if (property.PropertyType == typeof(Vector3))
+        //         {
+        //             var vector3Value = (Vector3)value;
+        //             send_to_python.Add(vector3Value.x);
+        //             send_to_python.Add(vector3Value.y);
+        //             send_to_python.Add(vector3Value.z);
+        //         }
+        //         // 如果值是 Quaternion，将其分解为 x、y、z、w
+        //         else if (property.PropertyType == typeof(Quaternion))
+        //         {
+        //             var quaternionValue = (Quaternion)value;
+        //             send_to_python.Add(quaternionValue.x);
+        //             send_to_python.Add(quaternionValue.y);
+        //             send_to_python.Add(quaternionValue.z);
+        //             send_to_python.Add(quaternionValue.w);
+        //         }
+        //         // 如果值是 float，直接添加到列表中
+        //         else if (property.PropertyType == typeof(float))
+        //         {
+        //             send_to_python.Add((float)value);
+        //         }
+        //     }
+        // }
+        // Debug.Log("publish to ros topic name : " + topicName);
+        Dictionary<string, object> stateDict = new Dictionary<string, object>();
         
-            }
-            catch (SocketException e)
-            {   
-                Debug.Log(e.ToString());
-                // If connection is refused, wait for a short time before trying again
-                StartCoroutine(PauseCoroutine());
-            }
-
+        foreach (var property in properties){
+            string propertyName = property.Name;
+            var value = property.GetValue(data);
+            stateDict[propertyName] = value;
         }
+        
+        string dictData = MiniJSON.Json.Serialize(stateDict);
 
-        // Once the loop has exited, the client is connected to the server
-        Debug.Log("Client connected to server");
-        yield return null;
+        
+        
+         
 
+ 
+        Dictionary<string, object> message = new Dictionary<string, object>
+        {
+            { "op", "publish" },
+            { "id", "1" },
+            { "topic", topicName },
+            { "msg", new Dictionary<string, object>
+                {
+                    { "data", dictData}                    
+                }
+           }
+        };
+        
+        string jsonMessage = MiniJSON.Json.Serialize(message);
+        
+        try{
+            socket.Send(jsonMessage);
+            
+        }
+            
+        catch{
+            Debug.Log("error-send");
+        }
     }
+
+
 
     void MoveGameObject(GameObject obj, Vector3 pos)
     {
+        Debug.Log("pos: "+pos);
         obj.transform.position = pos;
     }
 
@@ -388,21 +414,7 @@ public class TrainingManager : MonoBehaviour
 
     State UpdatePath(BezierCurve curver, State state)
     {
-        // Vector2 p0 = new Vector2(curver.positions[0].x, curver.positions[0].z);
-        // state["short time target pos"]["closest point x"] = p0[0];
-        // state["short time target pos"]["closest point y"] = p0[1];
 
-        // Vector2 p1 = new Vector2(curver.positions[2].x, curver.positions[2].z);
-        // state["short time target pos"]["second closest point x"] = p1[0];
-        // state["short time target pos"]["second closest point y"] = p1[1];
-
-        // Vector2 p2 = new Vector2(curver.positions[12].x, curver.positions[12].z);
-        // state["short time target pos"]["farthest point x"] = p2[0]; //10 points distance
-        // state["short time target pos"]["farthest point y"] = p2[1];
-
-        // trailClosest.transform.position = new Vector3(p0[0], 0.1f, p0[1]);
-        // trailSecond.transform.position = new Vector3(p1[0], 0.1f, p1[1]);
-        // trailTarget.transform.position = new Vector3(p2[0], 0.1f, p2[1]);
 
         float minDist = 100000.0f;
         int closestIndex = 0;
@@ -469,6 +481,30 @@ public class TrainingManager : MonoBehaviour
         return state;
     }
 
+    private void SubscribeToTopic(string topic)
+    {
+        
+        string subscribeMessage = "{\"op\":\"subscribe\",\"id\":\"1\",\"topic\":\"" + topic + "\",\"type\":\"std_msgs/msg/Float32MultiArray\"}";
+        socket.Send(subscribeMessage);
+    }
+
+    bool IsPointInsidePolygon(Vector3 point, Vector3[] polygonVertices)
+    {
+        Debug.Log("IsPointInsidePolygon called"+point);
+        int polygonSides = polygonVertices.Length;
+        bool isInside = false;
+
+        for (int i = 0, j = polygonSides - 1; i < polygonSides; j = i++)
+        {
+            if (((polygonVertices[i].z <= point.z && point.z < polygonVertices[j].z) ||
+                (polygonVertices[j].z <= point.z && point.z < polygonVertices[i].z)) &&
+                (point.x < (polygonVertices[j].x - polygonVertices[i].x) * (point.z - polygonVertices[i].z) / (polygonVertices[j].z - polygonVertices[i].z) + polygonVertices[i].x))
+            {
+                isInside = !isInside;
+            }
+        }
+        return isInside;
+    }
 
 
 }

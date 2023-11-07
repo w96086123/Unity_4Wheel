@@ -11,6 +11,7 @@ public class MotorMoveForward : MonoBehaviour
     float stiffness = 0f;
     float damping = 1000f;
     float forceLimit = 100f;
+    float voltage = 0;
 
     void Awake()
     {
@@ -19,28 +20,33 @@ public class MotorMoveForward : MonoBehaviour
 
     }
 
-    public void SetVoltage(float voltage)
+    public void SetVoltage(float newvoltage)
     {
-        var drive = bd.xDrive;
-        drive.targetVelocity = voltage;
-        // Debug.Log(voltage);
-        bd.xDrive = drive;
+        voltage = newvoltage;
     }
     
     
     // Start is called before the first frame update
     void Start()
     {
-        
+        ArticulationDrive currentDrive =bd.xDrive;
+        currentDrive.stiffness = stiffness;
+        currentDrive.damping = damping;
+        currentDrive.forceLimit = forceLimit;
+        bd.xDrive = currentDrive;
     }
 
     // Update is called once per frame
     void Update()
     {
-        ArticulationDrive currentDrive = bd.xDrive;
-        currentDrive.stiffness = stiffness;
-        currentDrive.damping = damping;
-        currentDrive.forceLimit = forceLimit;
-        bd.xDrive = currentDrive;
+        setSpeed(voltage);
+
+    }
+    void setSpeed(float voltage_wheel){
+        
+        var drive = bd.xDrive;
+        drive.targetVelocity = voltage_wheel;
+        
+        bd.xDrive = drive;
     }
 }

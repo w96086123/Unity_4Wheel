@@ -10,7 +10,7 @@ public class LidarSensor : MonoBehaviour
     public float RangeMetersMax = 100; // 1000
     float ScanAngleStartDegrees = 0; //-45
     float ScanAngleEndDegrees = -359; //45
-    public int NumMeasurementsPerScan = 180; //10
+    public int NumMeasurementsPerScan = 36; //10
 
     List<float> ranges = new List<float>();
     List<float> range_tmp = new List<float>();
@@ -69,7 +69,7 @@ public class LidarSensor : MonoBehaviour
         }
 
 
-        var measurementsSoFar = NumMeasurementsPerScan; //180
+        var measurementsSoFar = NumMeasurementsPerScan; //36
 
         var yawBaseDegrees = transform.rotation.eulerAngles.y;
         while (m_NumMeasurementsTaken < measurementsSoFar)

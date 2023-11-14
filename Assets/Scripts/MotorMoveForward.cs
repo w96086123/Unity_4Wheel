@@ -46,7 +46,8 @@ public class MotorMoveForward : MonoBehaviour
         
         var drive = bd.xDrive;
         drive.targetVelocity = voltage_wheel;
-        
+        drive.damping = damping;
+        drive.forceLimit = forceLimit;
         bd.xDrive = drive;
     }
 }

@@ -8,6 +8,7 @@ using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
+using UnityEngine.SceneManagement;
 // using System;
 using System.Reflection;
 using WebSocketSharp;
@@ -104,6 +105,11 @@ public class TrainingManager : MonoBehaviour
     Transform baselink;
     Vector3 carPos;
 
+    Vector3 newTarget_car;   
+
+    float target_x_car;
+    float target_y_car;
+
     void Start()
     {   
         baselink = robot.transform.Find("base_link");
@@ -131,52 +137,75 @@ public class TrainingManager : MonoBehaviour
     
     
     float target_change_flag = 0;
-    
     void Update()
     {  
 
         if(target_change_flag == 1){
-
             change_target();
+            // SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
             target_change_flag = 0;
-        }   
+        }
         
                 
                           
-    }
-        
-    
+    }   
 
-        void change_target()
-    {
-        carPos = baselink.GetComponent<ArticulationBody>().transform.position;
-        outerPolygonVertices = new Vector3[]{
-            anchor1.transform.position,
-            anchor2.transform.position,
-            anchor3.transform.position,
-            anchor4.transform.position
-        };
-        newTarget = new Vector3(carPos[0]-20, 0, carPos[2]-20);
+    private float abs_biggerthan1(float random)
+{
+	if (random <= 1 && random >= -1) 
+	{
+		if (random > 0) 
+		{
+			random += 1;
+		} 
+		else 
+		{
+			random -= 1;
+		}
+	}
+	return random;
+}
 
+       void change_target()
+{
+		carPos = baselink.GetComponent<ArticulationBody>().transform.position;
+		outerPolygonVertices = new Vector3[]{
+		anchor1.transform.position,
+		anchor2.transform.position,
+		anchor3.transform.position,
+		anchor4.transform.position
+		};
+		// -------------------------------------
+		target_x_car = Random.Range(-3.0f, 3.0f);
+		target_x_car = abs_biggerthan1(target_x_car);    
+		target_y_car = Random.Range(-3.0f, 3.0f);
+        target_y_car = abs_biggerthan1(target_y_car);
+
+        newTarget_car = new Vector3(carPos[0] + target_x_car, carPos[1], carPos[2] + target_y_car);
+        while (!IsPointInsidePolygon(newTarget_car, outerPolygonVertices))
+        {
+            target_x_car = Random.Range(-3.0f, 3.0f);
+            target_x_car = abs_biggerthan1(target_x_car);
+            target_y_car = Random.Range(-3.0f, 3.0f);
+            target_y_car = abs_biggerthan1(target_y_car);
+            newTarget_car = new Vector3(carPos[0] + target_x_car, 0, carPos[2] + target_y_car);
+        }
+        // MoveGameObject(robot.GameObject, newTarget_car); // check
+        MoveRobot(newTarget_car);
+        // ------------------------------------------
+
+
+        target_x = Random.Range(-3.0f, 3.0f);
+        target_x = abs_biggerthan1(target_x);
+
+        target_y = Random.Range(-3.0f, 3.0f);
+        target_y = abs_biggerthan1(target_y);
+        newTarget = new Vector3(newTarget_car[0] + target_x, 0, newTarget_car[2] + target_y);
         while (!IsPointInsidePolygon(newTarget, outerPolygonVertices)){
             target_x = Random.Range(-3.0f, 3.0f);
-
-            if (target_x <= 1 && target_x >= -1) {
-                if (target_x > 0) {
-                    target_x += 1;
-                } else {
-                    target_x -= 1;
-                }
-            }
-
-            float target_y = Random.Range(-3.0f, 3.0f);
-            if (target_y <= 1 && target_y >= -1) {
-                if (target_y > 0) {
-                    target_y += 1;
-                } else {
-                    target_y -= 1;
-                }
-            }
+            target_x = abs_biggerthan1(target_x);
+            target_y = Random.Range(-3.0f, 3.0f);
+            target_y = abs_biggerthan1(target_y);
             newTarget = new Vector3(carPos[0]+target_x, 0, carPos[2]+target_y);
 
         }
@@ -184,10 +213,12 @@ public class TrainingManager : MonoBehaviour
         MoveGameObject(target, newTarget);
 
         State state = updateState(newTarget, curver);
+        Debug.Log("carPosition: "+state.carPosition);
         Debug.Log("ROS2TargetPosition: "+state.ROS2TargetPosition);
+
         Send(state);
 
-    }
+}
 
     private void OnWebSocketMessage(object sender, MessageEventArgs e)
     {
@@ -213,42 +244,9 @@ public class TrainingManager : MonoBehaviour
                 break;
                 
             case 1:
-                
-                // robot.trailRenderer.Clear();
-                
-                // float target_x = Random.Range(-3.0f, 3.0f);//broken TODO
-                // Debug.Log(target_x);
-                //     if (target_x <= 1 && target_x >= -1) {
-                //        if (target_x > 0) {
-                //             target_x += 1;
-                //         } else {
-                //             target_x -= 1;
-                //         }
-                            
-                //     }
-                // Debug.Log("target_x");
-                // float target_y = Random.Range(-3.0f, 3.0f);
-                // if (target_y <= 1 && target_y >= -1) {
-                //     if (target_y > 0) {
-                //         target_y += 1;
-                //     } else {
-                //         target_y -= 1;
-                //     }   
-                // }
-                target_change_flag = 1;
-                // Transform baselink = robot.transform.Find("base_link");
+                         
+                target_change_flag = 1;        
                 Debug.Log("new target: "+ newTarget);
-                // var carPos = baselink.GetComponent<ArticulationBody>().transform.position;
-                
-                
-                
-                // MoveGameObject(target, newTarget);
-                
-                // State state = updateState(newTarget, curver);
-                // Debug.Log("new target!!!!!!!!!!!!!!!");
-                // Debug.Log("carPosition: "+state.carPosition);
-                // Debug.Log("targetPosition: "+state.ROS2TargetPosition);
-                // Send(state);
                 
                 break;
             }
@@ -326,38 +324,8 @@ public class TrainingManager : MonoBehaviour
 
     void Send(object data)
     {   
-        // List<float> send_to_python = new List<float>();
         var properties = typeof(State).GetProperties();
-        // foreach (var property in properties)
-        // {
-        //     if (property.PropertyType == typeof(Vector3) || property.PropertyType == typeof(Quaternion) || property.PropertyType == typeof(float))
-        //     {
-        //         var value = property.GetValue(data);
 
-        //         if (property.PropertyType == typeof(Vector3))
-        //         {
-        //             var vector3Value = (Vector3)value;
-        //             send_to_python.Add(vector3Value.x);
-        //             send_to_python.Add(vector3Value.y);
-        //             send_to_python.Add(vector3Value.z);
-        //         }
-        //         // 如果值是 Quaternion，将其分解为 x、y、z、w
-        //         else if (property.PropertyType == typeof(Quaternion))
-        //         {
-        //             var quaternionValue = (Quaternion)value;
-        //             send_to_python.Add(quaternionValue.x);
-        //             send_to_python.Add(quaternionValue.y);
-        //             send_to_python.Add(quaternionValue.z);
-        //             send_to_python.Add(quaternionValue.w);
-        //         }
-        //         // 如果值是 float，直接添加到列表中
-        //         else if (property.PropertyType == typeof(float))
-        //         {
-        //             send_to_python.Add((float)value);
-        //         }
-        //     }
-        // }
-        // Debug.Log("publish to ros topic name : " + topicName);
         Dictionary<string, object> stateDict = new Dictionary<string, object>();
         
         foreach (var property in properties){
@@ -367,10 +335,6 @@ public class TrainingManager : MonoBehaviour
         }
         
         string dictData = MiniJSON.Json.Serialize(stateDict);
-
-        
-        
-         
 
  
         Dictionary<string, object> message = new Dictionary<string, object>

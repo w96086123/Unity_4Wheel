@@ -5,30 +5,9 @@ using Newtonsoft.Json;
 public class State
 {   
  
-    // public Dictionary<string, Vector3> targetPosition { get; set; }
-    // public Dictionary<string, Vector3> pathPosition { get; set; }
-    // public Dictionary<string, Vector3> carPosition { get; set; }
-    // public Dictionary<string, Vector3> carVelocity { get; set; }
-    // public Dictionary<string, Vector3> carAugularVelocity { get; set; }
-    // public Dictionary<string, Quaternion> carQuaternion { get; set; }
-    // public Dictionary<string, Vector3> wheelAngularVelocity { get; set; }
-    // public Dictionary<string, Quaternion> wheelQuaternion { get; set; }
-    // public Vector3 targetPosition { get; set; }
-    // public Vector3 pathPositionClosest { get; set; }
+
     public Vector3 carPosition { get; set; }
-    // public Vector3 carVelocity { get; set; }
-    // public Vector3 carAugularVelocity { get; set; }
-    // public Quaternion carQuaternion { get; set; }
-    // public Vector3 wheelAngularVelocityLeftBack { get; set; }
-    // public Vector3 wheelAngularVelocityLeftFront { get; set; }
-    // public Vector3 wheelAngularVelocityRightBack { get; set; }
-    // public Vector3 wheelAngularVelocityRightFront { get; set; }
-    // public Quaternion wheelQuaternionLeftBack { get; set; }
-    // public Quaternion wheelQuaternionLeftFront { get; set; }
-    // public Quaternion wheelQuaternionRightBack { get; set; }
-    // public Quaternion wheelQuaternionRightFront { get; set; }
-    // public float minRange { get; set; }
-    // public Vector3 minRangeDirection { get; set; }
+    
 
     public Vector3 ROS2TargetPosition { get; set; } //3 4 5
     public Vector3 ROS2PathPositionClosest { get; set; }
@@ -39,9 +18,9 @@ public class State
     public Vector3 ROS2CarAugularVelocity { get; set; }
     public Quaternion ROS2CarQuaternion { get; set; }
     public Vector3 ROS2WheelAngularVelocityLeftBack { get; set; }
-    public Vector3 ROS2WheelAngularVelocityLeftFront { get; set; }
     public Vector3 ROS2WheelAngularVelocityRightBack { get; set; }
-    public Vector3 ROS2WheelAngularVelocityRightFront { get; set; }
+    public Vector3 ROS2StandAngleLeft{get;set;}
+    public Vector3 ROS2StandAngleRight{get;set;}
     public Quaternion ROS2WheelQuaternionLeftBack { get; set; }
     public Quaternion ROS2WheelQuaternionLeftFront { get; set; }
     public Quaternion ROS2WheelQuaternionRightBack { get; set; }

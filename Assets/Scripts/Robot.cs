@@ -40,19 +40,23 @@ public class Robot : MonoBehaviour
     {   
         baseLinkM = Util.GetOrAddComponent<MotionSensor>(transform, "base_link");
         
+        // 順序為前側轉向軸與後側前進
         
         wheelM = new List<MotionSensor>() {
-            Util.GetOrAddComponent<MotionSensor>(transform, "left_back_forward_wheel"),
-            Util.GetOrAddComponent<MotionSensor>(transform, "left_front_forward_wheel"),
-            Util.GetOrAddComponent<MotionSensor>(transform, "right_back_forward_wheel"),
-            Util.GetOrAddComponent<MotionSensor>(transform, "right_front_forward_wheel")
+            Util.GetOrAddComponent<MotionSensor>(transform, "left_stand_1"),
+            Util.GetOrAddComponent<MotionSensor>(transform, "right_stand_1"),
+
+
+            Util.GetOrAddComponent<MotionSensor>(transform, "left_back_forward_wheel_1"),
+            Util.GetOrAddComponent<MotionSensor>(transform, "right_back_forward_wheel_1"),
         };
 
         motorListMF = new List<MotorMoveForward>() {
-            Util.GetOrAddComponent<MotorMoveForward>(transform, "left_back_forward_wheel"),
-            Util.GetOrAddComponent<MotorMoveForward>(transform, "left_front_forward_wheel"),
-            Util.GetOrAddComponent<MotorMoveForward>(transform, "right_back_forward_wheel"),
-            Util.GetOrAddComponent<MotorMoveForward>(transform, "right_front_forward_wheel"),
+            Util.GetOrAddComponent<MotorMoveForward>(transform, "left_stand_1"),
+            Util.GetOrAddComponent<MotorMoveForward>(transform, "right_stand_1"),
+
+            Util.GetOrAddComponent<MotorMoveForward>(transform, "left_back_forward_wheel_1"),
+            Util.GetOrAddComponent<MotorMoveForward>(transform, "right_back_forward_wheel_1"),
         };
 
    
@@ -67,10 +71,11 @@ public class Robot : MonoBehaviour
         Vector3 carVel = baseLinkM.v;
         Vector3 carAngV = baseLinkM.AngularV;
         Quaternion carQ = baseLinkM.q;
-        Vector3 angVLB = wheelM[0].AngularV;
-        Vector3 angVLF = wheelM[1].AngularV;
-        Vector3 angVRB = wheelM[2].AngularV;
-        Vector3 angVRF = wheelM[3].AngularV;
+        // angle Velocity left stand
+        Vector3 angVLS = wheelM[0].AngularV;
+        Vector3 angVRS = wheelM[1].AngularV;
+        Vector3 angVLW = wheelM[2].AngularV;
+        Vector3 angVRW = wheelM[3].AngularV;
         List<float> range = lidar.GetRange();
         
         var rangeDirection = lidar.GetRangeDirection(); //list
@@ -91,12 +96,11 @@ public class Robot : MonoBehaviour
             ROS2CarVelocity = ToRosVec(carVel),
             ROS2CarAugularVelocity = ToRosVec(carAngV),
             ROS2CarQuaternion = ToRosQuaternion(carQ),
-            ROS2WheelAngularVelocityLeftBack = ToRosVec(angVLB),
-            // ROS2WheelAngularVelocityLeftFront = ToRosVec(angVLF),
-            ROS2WheelAngularVelocityRightBack = ToRosVec(angVRB),
-            // ROS2WheelAngularVelocityRightFront = ToRosVec(angVRF),
-            // ROS2WheelQuaternionLeftFront = ToRosQuaternion(qLF),
-            // ROS2WheelQuaternionRightFront = ToRosQuaternion(qRF),
+            ROS2WheelAngularVelocityLeftBack = ToRosVec(angVLW),
+            ROS2WheelAngularVelocityRightBack = ToRosVec(angVRW),
+            ROS2StandAngleLeft = ToRosVec(angVLS),
+            ROS2StandAngleRight = ToRosVec(angVRS),
+
             ROS2Range = range.ToArray(),
 
             ROS2RangePosition = rangeDirection.ToArray(),
@@ -127,12 +131,10 @@ public class Robot : MonoBehaviour
     public void DoAction(Action action)
     {   
 
-        
-
-        ////rear engine
-        
+        //direction
         motorListMF[0].SetVoltage((float)action.voltage[0]);
         motorListMF[1].SetVoltage((float)action.voltage[0]);
+        //forword
         motorListMF[2].SetVoltage((float)action.voltage[1]);
         motorListMF[3].SetVoltage((float)action.voltage[1]);
 

@@ -175,6 +175,7 @@ public class TrainingManager : MonoBehaviour
 		anchor3.transform.position,
 		anchor4.transform.position
 		};
+        // move robot to new pos
 		// -------------------------------------
 		target_x_car = Random.Range(-3.0f, 3.0f);
 		target_x_car = abs_biggerthan1(target_x_car);    
@@ -192,9 +193,9 @@ public class TrainingManager : MonoBehaviour
         }
         // MoveGameObject(robot.GameObject, newTarget_car); // check
         MoveRobot(newTarget_car);
+
+        // select new target pos
         // ------------------------------------------
-
-
         target_x = Random.Range(-3.0f, 3.0f);
         target_x = abs_biggerthan1(target_x);
 

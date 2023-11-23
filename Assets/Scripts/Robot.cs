@@ -18,6 +18,7 @@ public class Robot : MonoBehaviour
 
     // List<Motor> motorList;
     List<MotorMoveForward> motorListMF;
+    List<MotorSteering> standListMF;
 
     public TrailRenderer trailRenderer;
 
@@ -51,10 +52,12 @@ public class Robot : MonoBehaviour
             Util.GetOrAddComponent<MotionSensor>(transform, "right_back_forward_wheel_1"),
         };
 
-        motorListMF = new List<MotorMoveForward>() {
-            Util.GetOrAddComponent<MotorMoveForward>(transform, "left_stand_1"),
-            Util.GetOrAddComponent<MotorMoveForward>(transform, "right_stand_1"),
+        standListMF = new List<MotorSteering>(){
+            Util.GetOrAddComponent<MotorSteering>(transform, "left_stand_1"),
+            Util.GetOrAddComponent<MotorSteering>(transform, "right_stand_1"),
+        };
 
+        motorListMF = new List<MotorMoveForward>() {
             Util.GetOrAddComponent<MotorMoveForward>(transform, "left_back_forward_wheel_1"),
             Util.GetOrAddComponent<MotorMoveForward>(transform, "right_back_forward_wheel_1"),
         };
@@ -130,13 +133,15 @@ public class Robot : MonoBehaviour
 
     public void DoAction(Action action)
     {   
+        Debug.Log(action.voltage);
+                //forword
+        motorListMF[0].SetVoltage((float)action.voltage[1]);
+        motorListMF[1].SetVoltage((float)action.voltage[1]);
 
         //direction
-        motorListMF[0].SetVoltage((float)action.voltage[0]);
-        motorListMF[1].SetVoltage((float)action.voltage[0]);
-        //forword
-        motorListMF[2].SetVoltage((float)action.voltage[1]);
-        motorListMF[3].SetVoltage((float)action.voltage[1]);
+        standListMF[0].SetAngle((float)action.voltage[0]);
+        standListMF[1].SetAngle((float)action.voltage[0]);
+
 
 
     }
